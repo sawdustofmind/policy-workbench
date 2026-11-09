@@ -17,7 +17,7 @@ func samplePolicy(id string) domain.Policy {
 }
 func evaluate(t *testing.T, policies []domain.Policy, request domain.TransferRequest) domain.PolicyDecision {
 	t.Helper()
-	decision, err := domain.EvaluatePolicies(policies, demo.Catalog(), request)
+	decision, err := domain.EvaluatePolicies(policies, demo.Catalog(), request, noSpending)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestExactMoney(t *testing.T) {
 }
 func TestAmountBoundaryAndFallthrough(t *testing.T) {
 	first, fallback := samplePolicy("bounded"), samplePolicy("fallback")
-	first.MaxAmount = "100"
+	first.AmountPolicy = domain.CountLimit("100")
 	for _, tc := range []struct{ amount, expected string }{{"99.99", "bounded"}, {"100", "bounded"}, {"100.01", "fallback"}} {
 		request := sampleInput()
 		request.Amount = tc.amount
@@ -60,11 +60,11 @@ func TestAmountBoundaryAndFallthrough(t *testing.T) {
 			t.Errorf("%s selected %s", tc.amount, got.PolicyID)
 		}
 	}
-	first.MaxAmount = "0"
+	first.AmountPolicy = domain.CountLimit("0")
 	if evaluate(t, []domain.Policy{first, fallback}, sampleInput()).PolicyID != fallback.ID {
 		t.Fatal("zero treated as unrestricted")
 	}
-	first.MaxAmount = ""
+	first.AmountPolicy = nil
 	if evaluate(t, []domain.Policy{first, fallback}, sampleInput()).PolicyID != first.ID {
 		t.Fatal("blank upper bound did not match")
 	}
@@ -141,7 +141,7 @@ func TestInputAndPolicyValidation(t *testing.T) {
 		t.Fatal("unsupported currency accepted")
 	}
 	policy = samplePolicy("test")
-	policy.MaxAmount = "0.001"
+	policy.AmountPolicy = domain.CountLimit("0.001")
 	if domain.ValidatePolicy(policy, demo.Catalog()) == nil {
 		t.Fatal("fractional cent accepted")
 	}

@@ -30,13 +30,13 @@ Requires Go 1.22 or newer. No npm, Docker, credentials or external service is ne
 go run .
 ```
 
-Open **http://127.0.0.1:8094**. The first run creates `.data/state-v3.json`. Changes survive a server restart. **Reset demo** restores both profiles, policies, history and the simulation clock.
+Open **http://127.0.0.1:8094**. The first run creates `.data/state-v4.json`. Changes survive a server restart. **Reset demo** restores both profiles, policies, history and the simulation clock.
 
 ```sh
 go run . -addr 127.0.0.1:8095 -data /tmp/my-policy-workbench.json
 ```
 
-Use a distinct state file for each process. Format version 3 represents USD/EUR payments. Earlier crypto-demo files are refused rather than reinterpreting their amounts as fiat. The previous default state file is not overwritten. Docker and local Go use separate state locations by default.
+Use a distinct state file for each process. Format version 4 stores the amount condition as a nested `amount_policy`. Version 3 and earlier files are refused rather than reinterpreting their amounts as fiat. The previous default state file is not overwritten. Docker and local Go use separate state locations by default.
 
 Storage supports one process per file. Atomic file replacement protects against partial JSON writes; this demo does not promise database-grade durability across a power loss.
 
@@ -65,8 +65,14 @@ Policies belong to a profile and run top to bottom. The first rule whose conditi
 | Sender           | Any wallet, one wallet or wallet-group membership                                                   |
 | Receiver         | Any recipient, one recipient or recipient-group membership                                          |
 | Currency         | USD or EUR, matched against the source wallet's currency                                            |
-| Amount less than | Inclusive upper bound for one payment, `amount <= maximum`. Blank is unrestricted; zero is a bound. |
+| Amount condition | Optional `amount_policy`. Absent means any amount. `count`: each payment `amount <= limit`. `interval`: the source wallet's rolling total `used + amount <= limit` over `24h` or `30d`. Zero is a bound. |
 | Decision         | ALLOW or REJECT                                                                                     |
+
+An interval total belongs to the paying wallet, not to the policy or wallet group. It sums that wallet's PENDING_SIGNATURE, SENT and CONFIRMED transfers created in `(now − interval, now]` on the simulation clock, whichever policy allowed them. The wallet view shows both totals.
+
+```json
+"amount_policy": {"amount": "10000", "amount_type": "interval", "interval": "24h"}
+```
 
 Amount and currency are matching conditions. A non-match continues to the next rule. Exceeding a maximum does not itself reject a transfer. A matching REJECT records REJECTED_BY_POLICY. No match records NO_POLICY_FOUND.
 

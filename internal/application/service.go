@@ -3,6 +3,7 @@ package application
 import (
 	"fmt"
 	"slices"
+	"sync"
 	"time"
 
 	"policy-workbench/internal/domain"
@@ -12,6 +13,10 @@ type Service struct {
 	repository    Repository
 	catalog       domain.Catalog
 	seedWorkspace func(time.Time) WorkspaceState
+	// mu serializes changes that read or update the spending cache, so the
+	// cache is only committed after a successful save and never read stale.
+	mu       sync.Mutex
+	spending *spendingCache
 }
 
 func NewService(repository Repository, catalog domain.Catalog, seedWorkspace func(time.Time) WorkspaceState) (*Service, error) {
@@ -29,13 +34,19 @@ func NewService(repository Repository, catalog domain.Catalog, seedWorkspace fun
 			return nil, fmt.Errorf("invalid saved policy %s: %w", policy.ID, err)
 		}
 	}
-	return &Service{repository: repository, catalog: catalog, seedWorkspace: seedWorkspace}, nil
+	spending, err := newSpendingCache(state.Transfers)
+	if err != nil {
+		return nil, err
+	}
+	return &Service{repository: repository, catalog: catalog, seedWorkspace: seedWorkspace, spending: spending}, nil
 }
 
 func (service *Service) Workspace(profileID string) (WorkspaceView, error) {
 	if !service.catalog.HasProfile(profileID) {
 		return WorkspaceView{}, domain.InvalidRequest("choose a known profile")
 	}
+	service.mu.Lock()
+	defer service.mu.Unlock()
 	state := service.repository.Snapshot()
 	view := WorkspaceView{SimulationTime: state.SimulationTime, ProfileID: profileID, Catalog: service.catalog, Wallets: []domain.WalletBalance{}, Policies: []domain.Policy{}, Transfers: []domain.Transfer{}}
 	for _, wallet := range service.catalog.Wallets {
@@ -46,6 +57,8 @@ func (service *Service) Workspace(profileID string) (WorkspaceView, error) {
 		if err != nil {
 			return WorkspaceView{}, err
 		}
+		balance.Spent24h = service.spending.Used(profileID, wallet.ID, wallet.Currency, domain.Interval24h, state.SimulationTime).String()
+		balance.Spent30d = service.spending.Used(profileID, wallet.ID, wallet.Currency, domain.Interval30d, state.SimulationTime).String()
 		view.Wallets = append(view.Wallets, balance)
 	}
 	for _, policy := range state.Policies {

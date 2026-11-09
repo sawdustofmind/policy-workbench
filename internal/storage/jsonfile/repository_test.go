@@ -13,7 +13,7 @@ import (
 )
 
 func initialState() application.WorkspaceState {
-	return application.WorkspaceState{Version: 3, SimulationTime: time.Date(2026, 1, 12, 12, 0, 0, 0, time.UTC), Policies: []domain.Policy{}, Transfers: []domain.Transfer{}}
+	return application.WorkspaceState{Version: application.StateVersion, SimulationTime: time.Date(2026, 1, 12, 12, 0, 0, 0, time.UTC), Policies: []domain.Policy{}, Transfers: []domain.Transfer{}}
 }
 
 func TestSaveFailureDoesNotPublishState(t *testing.T) {
@@ -108,20 +108,22 @@ func TestCorruptStateIsNotReseeded(t *testing.T) {
 
 func TestPreviousStateVersionIsNotSilentlyReinterpreted(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state.json")
-	previous := initialState()
-	previous.Version = 2
-	data, err := json.Marshal(previous)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, data, 0600); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Open(path, initialState()); err == nil {
-		t.Fatal("previous state version accepted")
-	}
-	current, err := os.ReadFile(path)
-	if err != nil || string(current) != string(data) {
-		t.Fatal("unsupported state overwritten")
+	for _, version := range []int{2, 3} {
+		previous := initialState()
+		previous.Version = version
+		data, err := json.Marshal(previous)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, data, 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Open(path, initialState()); err == nil {
+			t.Fatal("previous state version accepted", version)
+		}
+		current, err := os.ReadFile(path)
+		if err != nil || string(current) != string(data) {
+			t.Fatal("unsupported state overwritten")
+		}
 	}
 }

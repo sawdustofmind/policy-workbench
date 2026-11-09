@@ -51,13 +51,33 @@ func ValidatePolicy(p Policy, c Catalog) error {
 	if !p.Currency.Valid() {
 		return InvalidRequest("currency must be USD or EUR")
 	}
-	if p.MaxAmount != "" {
-		if _, err := ParseMoney(p.MaxAmount); err != nil {
-			return InvalidRequest("amount limit: %v", err)
-		}
+	if err := validateAmountPolicy(p.AmountPolicy); err != nil {
+		return err
 	}
 	if !slices.Contains([]PolicyAction{PolicyAllow, PolicyReject}, p.Action) {
 		return InvalidRequest("action must be ALLOW or REJECT")
+	}
+	return nil
+}
+
+func validateAmountPolicy(rule *AmountPolicy) error {
+	if rule == nil {
+		return nil
+	}
+	if _, err := ParseMoney(rule.Amount); err != nil {
+		return InvalidRequest("amount limit: %v", err)
+	}
+	switch rule.AmountType {
+	case AmountTypeCount:
+		if rule.Interval != nil {
+			return InvalidRequest("a per-transfer amount limit must not have an interval")
+		}
+	case AmountTypeInterval:
+		if rule.Interval == nil || !rule.Interval.Valid() {
+			return InvalidRequest("interval must be 24h or 30d")
+		}
+	default:
+		return InvalidRequest("amount type must be count or interval")
 	}
 	return nil
 }

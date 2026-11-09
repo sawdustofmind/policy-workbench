@@ -47,6 +47,7 @@ export function createPoliciesView(workspace) {
     ]);
     form.elements.initiator_id.value = "";
     updateCounterpartyFields();
+    updateAmountFields();
     query("#policy-dialog").showModal();
     form.elements.name.focus();
   }
@@ -80,10 +81,32 @@ export function createPoliciesView(workspace) {
             : "Recipient group";
     }
   }
+  const amountHints = {
+    "": "Matches any amount.",
+    count: "Inclusive upper bound for each transfer on its own.",
+    interval:
+      "Inclusive upper bound for the source wallet's pending, sent and confirmed payments in the rolling interval, including this one.",
+  };
+  function updateAmountFields() {
+    const fields = query("#policy-form").elements;
+    const type = fields.amount_type.value;
+    query("#amount-fields").hidden = type === "";
+    query("#interval-label").hidden = type !== "interval";
+    fields.amount.required = type !== "";
+    query("#amount-hint").textContent = amountHints[type];
+  }
+  function readAmountPolicy(fields) {
+    const type = fields.amount_type.value;
+    if (type === "") return null;
+    const rule = { amount: fields.amount.value.trim(), amount_type: type };
+    if (type === "interval") rule.interval = fields.interval.value;
+    return rule;
+  }
   query("#new-policy").addEventListener("click", openCreatePolicyDialog);
   query("#policy-form").addEventListener("change", (event) => {
     if (["sender_type", "receiver_type"].includes(event.target.name))
       updateCounterpartyFields();
+    if (event.target.name === "amount_type") updateAmountFields();
   });
   query("#policy-form").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -101,7 +124,7 @@ export function createPoliciesView(workspace) {
       receiver_type: fields.receiver_type.value,
       receiver_id:
         fields.receiver_type.value === "any" ? "" : fields.receiver_id.value,
-      amount_limit: fields.amount_limit.value.trim(),
+      amount_policy: readAmountPolicy(fields),
       currency: fields.currency.value,
       action: fields.action.value,
     };

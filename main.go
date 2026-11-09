@@ -25,7 +25,7 @@ var embeddedFiles embed.FS
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:8094", "HTTP listen address")
-	data := flag.String("data", ".data/state-v3.json", "JSON state file; use a distinct file for each process")
+	data := flag.String("data", ".data/state-v4.json", "JSON state file; use a distinct file for each process")
 	flag.Parse()
 	catalog := demo.Catalog()
 	seedWorkspace := func(now time.Time) application.WorkspaceState { return demo.Workspace(catalog, now) }

@@ -7,6 +7,8 @@ type WalletBalance struct {
 	Balance   string `json:"balance"`
 	Reserved  string `json:"reserved"`
 	Available string `json:"available"`
+	Spent24h  string `json:"spent_24h"` // Rolling totals used by interval amount limits.
+	Spent30d  string `json:"spent_30d"`
 }
 
 func CalculateWalletBalance(wallet Wallet, transfers []Transfer) (WalletBalance, error) {
@@ -20,7 +22,7 @@ func CalculateWalletBalance(wallet Wallet, transfers []Transfer) (WalletBalance,
 		if transfer.ProfileID != wallet.ProfileID || transfer.WalletID != wallet.ID {
 			continue
 		}
-		if transfer.Status != StatusPendingSignature && transfer.Status != StatusSent && transfer.Status != StatusConfirmed {
+		if !ConsumesFunds(transfer.Status) {
 			continue
 		}
 		if transfer.Currency != wallet.Currency {

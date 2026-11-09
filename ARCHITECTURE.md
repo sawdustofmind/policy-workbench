@@ -33,7 +33,9 @@ There is no separately persisted balance or reservation ledger. `CalculateWallet
 
 Each wallet has one currency, USD or EUR. Policy currency is a matching condition, not a conversion target. Transfers use their wallet's currency. Amounts are exact nonnegative decimal strings with at most two meaningful fractional digits and up to 78 total digits on input. Internal arithmetic uses `big.Int` coefficients and scale.
 
-Version-3 state contains policies, transfers, an ID sequence and simulation time. Older crypto files are rejected because their amounts do not share this meaning. The default version-3 filename is distinct from the previous demo's filename.
+Version-4 state contains policies, transfers, an ID sequence and simulation time. Version 3 and older files are refused rather than reinterpreted. The default filename is `state-v4.json`.
+
+Interval amount limits read the source wallet's rolling total from an in-memory cache owned by `application.Service`. Keys are `spend:{profile_id}:{wallet_id}:{currency}:{interval}` (e.g. `spend:treasury:operations:USD:24h`); each holds the wallet's fund-holding transfers in creation order plus a running total, evicting expired entries on read. Every fund-holding transfer is added under both intervals. The cache is rebuilt from transfers at startup and on reset, and is updated only after a successful save while `Service.mu` serializes creation, actions and reset. `domain.WalletSpend` is the reference calculation the cache is tested against.
 
 Policy snapshots, traces and nested condition arrays are copied at ownership boundaries. Policy order and balance checks use the same locked state as transfer insertion.
 

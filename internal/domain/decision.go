@@ -33,7 +33,7 @@ type PolicyDecision struct {
 
 func (decision PolicyDecision) Clone() PolicyDecision {
 	if decision.MatchedPolicy != nil {
-		policy := *decision.MatchedPolicy
+		policy := decision.MatchedPolicy.Clone()
 		decision.MatchedPolicy = &policy
 	}
 	decision.Trace = slices.Clone(decision.Trace)

@@ -104,7 +104,8 @@
           </div>
           <p class="footnote">
             Balance excludes confirmed payments. Available balance also excludes
-            funds reserved by pending transfers.
+            funds reserved by pending transfers. 24h and 30d totals include
+            pending, sent and confirmed payments in the rolling interval.
           </p>
         </section>
         <section id="policies-view" class="view" hidden>
@@ -133,8 +134,9 @@
             <div id="policies-list"></div>
           </div>
           <p class="footnote">
-            Amount less than checks a single transfer. Equality is included. An
-            empty amount matches any amount.
+            An amount condition checks either each transfer or the source
+            wallet's rolling 24h / 30d total including the new transfer.
+            Equality is included. No condition matches any amount.
           </p>
         </section>
         <section id="transfers-view" class="view" hidden>
@@ -259,13 +261,13 @@
               >Recipient<select name="receiver_id"></select
             ></label>
           </div>
-          <div class="form-grid amount-grid">
+          <div class="form-grid">
             <label
-              >Amount less than<input
-                name="amount_limit"
-                inputmode="decimal"
-                placeholder="No restriction"
-                autocomplete="off" /></label
+              >Amount condition<select name="amount_type">
+                <option value="">Any amount</option>
+                <option value="count">Each transfer</option>
+                <option value="interval">Wallet total over interval</option>
+              </select></label
             ><label
               >Currency<select name="currency">
                 <option value="USD">USD</option>
@@ -273,8 +275,22 @@
               </select></label
             >
           </div>
-          <p class="field-hint">
-            Inclusive upper bound for each transfer. Leave blank for any amount.
+          <div id="amount-fields" class="form-grid amount-grid" hidden>
+            <label
+              >Amount less than<input
+                name="amount"
+                inputmode="decimal"
+                placeholder="e.g. 10000"
+                autocomplete="off" /></label
+            ><label id="interval-label" hidden
+              >Interval<select name="interval">
+                <option value="24h">24 hours</option>
+                <option value="30d">30 days</option>
+              </select></label
+            >
+          </div>
+          <p id="amount-hint" class="field-hint">
+            Matches any amount.
           </p>
           <div class="form-section-label">Action</div>
           <div class="form-grid">

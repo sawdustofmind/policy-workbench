@@ -13,4 +13,4 @@ COPY --from=build --chown=10001:10001 /out/data/ /data/
 USER 10001:10001
 EXPOSE 8094
 ENTRYPOINT ["/app/policy-workbench"]
-CMD ["-addr", "0.0.0.0:8094", "-data", "/data/state-v3.json"]
+CMD ["-addr", "0.0.0.0:8094", "-data", "/data/state-v4.json"]

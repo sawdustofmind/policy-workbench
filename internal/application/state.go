@@ -7,6 +7,9 @@ import (
 	"policy-workbench/internal/domain"
 )
 
+// StateVersion 4 stores amount conditions as a nested amount_policy.
+const StateVersion = 4
+
 // WorkspaceState is the single persisted snapshot of this local simulation.
 type WorkspaceState struct {
 	Version        int               `json:"version"`
@@ -24,7 +27,7 @@ func (state *WorkspaceState) AllocateID(prefix string) string {
 func (state WorkspaceState) Clone() WorkspaceState {
 	policies := make([]domain.Policy, len(state.Policies))
 	for index, policy := range state.Policies {
-		policies[index] = policy
+		policies[index] = policy.Clone()
 	}
 	transfers := make([]domain.Transfer, len(state.Transfers))
 	for index, transfer := range state.Transfers {

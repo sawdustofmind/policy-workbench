@@ -33,7 +33,7 @@ func Open(path string, initial application.WorkspaceState) (*Repository, error) 
 		return nil, fmt.Errorf("read saved state: %w", err)
 	}
 	state := repository.state
-	if state.Version != 3 || state.SimulationTime.IsZero() || state.Policies == nil || state.Transfers == nil {
+	if state.Version != application.StateVersion || state.SimulationTime.IsZero() || state.Policies == nil || state.Transfers == nil {
 		return nil, fmt.Errorf("unsupported or incomplete state file; use a new -data path")
 	}
 	return repository, nil

@@ -67,6 +67,14 @@ export function renderPolicyConditions(policy, catalog) {
     parts
       .map((part) => `<span class="chip">${escapeHTML(part)}</span>`)
       .join("") +
-    `<span class="chip amount">${policy.amount_limit === "" ? "Any amount" : `≤ ${escapeHTML(formatAmount(policy.amount_limit))} ${escapeHTML(policy.currency)}`}</span>`
+    `<span class="chip amount">${escapeHTML(describeAmountPolicy(policy))}</span>`
   );
+}
+export function describeAmountPolicy(policy) {
+  const rule = policy.amount_policy;
+  if (!rule) return "Any amount";
+  const limit = `≤ ${formatAmount(rule.amount)} ${policy.currency}`;
+  return rule.amount_type === "interval"
+    ? `${limit} / ${rule.interval} per wallet`
+    : `${limit} per transfer`;
 }

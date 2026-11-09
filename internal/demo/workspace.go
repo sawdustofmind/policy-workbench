@@ -8,14 +8,14 @@ import (
 
 func Workspace(catalog domain.Catalog, now time.Time) application.WorkspaceState {
 	now = now.UTC().Truncate(time.Second)
-	state := application.WorkspaceState{Version: 3, SimulationTime: now, IDSequence: 100, Policies: []domain.Policy{}, Transfers: []domain.Transfer{}}
+	state := application.WorkspaceState{Version: application.StateVersion, SimulationTime: now, IDSequence: 100, Policies: []domain.Policy{}, Transfers: []domain.Transfer{}}
 	state.Policies = []domain.Policy{
 		{ID: "policy-restricted", ProfileID: "treasury", Name: "Restricted USD recipients", SenderType: domain.SenderAny, ReceiverType: domain.ReceiverRecipientGroup, ReceiverID: "restricted", Currency: domain.CurrencyUSD, Action: domain.PolicyReject, CreatedAt: now.Add(-72 * time.Hour)},
-		{ID: "policy-daily", ProfileID: "treasury", Name: "Operations payments", SenderType: domain.SenderWalletGroup, SenderID: "daily-wallets", ReceiverType: domain.ReceiverAny, MaxAmount: "10000", Currency: domain.CurrencyUSD, Action: domain.PolicyAllow, CreatedAt: now.Add(-72 * time.Hour)},
+		{ID: "policy-daily", ProfileID: "treasury", Name: "Operations payments", SenderType: domain.SenderWalletGroup, SenderID: "daily-wallets", ReceiverType: domain.ReceiverAny, AmountPolicy: domain.CountLimit("10000"), Currency: domain.CurrencyUSD, Action: domain.PolicyAllow, CreatedAt: now.Add(-72 * time.Hour)},
 		{ID: "policy-review", ProfileID: "treasury", Name: "Treasury fallback", SenderType: domain.SenderAny, ReceiverType: domain.ReceiverAny, Currency: domain.CurrencyUSD, Action: domain.PolicyAllow, CreatedAt: now.Add(-72 * time.Hour)},
 		{ID: "policy-europe", ProfileID: "treasury", Name: "Europe payments", SenderType: domain.SenderWallet, SenderID: "europe", ReceiverType: domain.ReceiverRecipientGroup, ReceiverID: "suppliers", Currency: domain.CurrencyEUR, Action: domain.PolicyAllow, CreatedAt: now.Add(-72 * time.Hour)},
-		{ID: "policy-studio", ProfileID: "studio", Name: "Studio USD payments", SenderType: domain.SenderAny, ReceiverType: domain.ReceiverAny, MaxAmount: "5000", Currency: domain.CurrencyUSD, Action: domain.PolicyAllow, CreatedAt: now.Add(-72 * time.Hour)},
-		{ID: "policy-studio-eur", ProfileID: "studio", Name: "Studio EUR payments", SenderType: domain.SenderAny, ReceiverType: domain.ReceiverAny, MaxAmount: "5000", Currency: domain.CurrencyEUR, Action: domain.PolicyAllow, CreatedAt: now.Add(-72 * time.Hour)},
+		{ID: "policy-studio", ProfileID: "studio", Name: "Studio USD payments", SenderType: domain.SenderAny, ReceiverType: domain.ReceiverAny, AmountPolicy: domain.CountLimit("5000"), Currency: domain.CurrencyUSD, Action: domain.PolicyAllow, CreatedAt: now.Add(-72 * time.Hour)},
+		{ID: "policy-studio-eur", ProfileID: "studio", Name: "Studio EUR payments", SenderType: domain.SenderAny, ReceiverType: domain.ReceiverAny, AmountPolicy: domain.CountLimit("5000"), Currency: domain.CurrencyEUR, Action: domain.PolicyAllow, CreatedAt: now.Add(-72 * time.Hour)},
 	}
 	fixtures := []struct {
 		age     time.Duration
@@ -30,7 +30,10 @@ func Workspace(catalog domain.Catalog, now time.Time) application.WorkspaceState
 	}
 	for _, fixture := range fixtures {
 		state.SimulationTime = now.Add(-fixture.age)
-		decision, err := domain.EvaluatePolicies(state.Policies, catalog, fixture.request)
+		usage := func(interval domain.LimitInterval) (domain.Decimal, error) {
+			return domain.WalletSpend(state.Transfers, fixture.request.ProfileID, fixture.request.WalletID, state.SimulationTime, interval.Duration())
+		}
+		decision, err := domain.EvaluatePolicies(state.Policies, catalog, fixture.request, usage)
 		if err != nil {
 			panic("invalid demo transfer: " + err.Error())
 		}

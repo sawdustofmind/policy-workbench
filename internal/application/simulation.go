@@ -20,8 +20,16 @@ func (service *Service) AdvanceClock(hours int) (time.Time, error) {
 }
 
 func (service *Service) ResetWorkspace() error {
-	return service.repository.Update(func(state *WorkspaceState) error {
+	service.mu.Lock()
+	defer service.mu.Unlock()
+	var transfers []domain.Transfer
+	err := service.repository.Update(func(state *WorkspaceState) error {
 		*state = service.seedWorkspace(time.Now())
+		transfers = state.Transfers
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	return service.spending.Rebuild(transfers)
 }

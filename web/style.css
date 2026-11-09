@@ -1183,4 +1183,10 @@ tbody tr:hover {
   #wallets-list [data-balance="available"]::before {
     content: "Available";
   }
+  #wallets-list [data-balance="spent-24h"]::before {
+    content: "Spent 24h";
+  }
+  #wallets-list [data-balance="spent-30d"]::before {
+    content: "Spent 30d";
+  }
 }

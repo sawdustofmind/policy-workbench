@@ -176,3 +176,43 @@ func TestHTTPTransferCurrencyIsServerOwned(t *testing.T) {
 		t.Fatal("wrong wallet currency", transfer.Currency)
 	}
 }
+
+func TestHTTPAmountPolicy(t *testing.T) {
+	server, _, _ := testServer(t)
+	base := func(amount any) map[string]any {
+		return map[string]any{"profile_id": "treasury", "name": "Amount rule", "sender_type": "any", "receiver_type": "any", "currency": "USD", "action": "ALLOW", "amount_policy": amount}
+	}
+	legacy := base(nil)
+	delete(legacy, "amount_policy")
+	legacy["amount_limit"] = "100"
+	apiRequest(t, server, "POST", "/api/policies", legacy, 400)
+	for _, invalid := range []map[string]any{
+		{"amount": "100", "amount_type": "count", "interval": "24h"},
+		{"amount": "100", "amount_type": "interval"},
+		{"amount": "100", "amount_type": "interval", "interval": "7d"},
+		{"amount": "", "amount_type": "count"},
+	} {
+		apiRequest(t, server, "POST", "/api/policies", base(invalid), 400)
+	}
+	var created domain.Policy
+	if err := json.Unmarshal(apiRequest(t, server, "POST", "/api/policies", base(map[string]any{"amount": "10000", "amount_type": "interval", "interval": "30d"}), 201), &created); err != nil {
+		t.Fatal(err)
+	}
+	if created.AmountPolicy == nil || *created.AmountPolicy.Interval != domain.Interval30d {
+		t.Fatal("interval policy not stored", created.AmountPolicy)
+	}
+	apiRequest(t, server, "POST", "/api/policies", base(nil), 201)
+	var view struct {
+		Wallets []struct {
+			ID       string `json:"id"`
+			Spent24h string `json:"spent_24h"`
+			Spent30d string `json:"spent_30d"`
+		} `json:"wallets"`
+	}
+	if err := json.Unmarshal(apiRequest(t, server, "GET", "/api/state?profile_id=treasury", nil, 200), &view); err != nil {
+		t.Fatal(err)
+	}
+	if view.Wallets[0].ID != "operations" || view.Wallets[0].Spent24h != "1800" || view.Wallets[0].Spent30d != "6000" {
+		t.Fatal("wallet spending totals missing", view.Wallets[0])
+	}
+}
